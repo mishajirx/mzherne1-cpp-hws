@@ -34,6 +34,7 @@ void trim(std::string &s) {
 
 using std::endl;
 using std::cout;
+using std::cerr;
 
 int main(int argc, char * argv[]){
 
@@ -52,8 +53,14 @@ int main(int argc, char * argv[]){
 
     // other error checking, rest of your main code to go here :)
     
-    // Read the input file
+    // Check if file can be opened
     std::ifstream infile(argv[1]);
+    if (!infile.is_open()) {
+        cerr << "ERROR: Unable to open file '" << argv[1] << "'" << endl;
+        return 1;
+    }
+    
+    // Read the input file
     std::string text;
     std::string line;
     while (std::getline(infile, line)) {
@@ -65,9 +72,102 @@ int main(int argc, char * argv[]){
     }
     infile.close();
     
-    // Get k and n from command line
-    int maxK = std::stoi(argv[2]);
-    int n = std::stoi(argv[3]);
+    // Check if file was empty
+    if (text.empty()) {
+        cerr << "ERROR: Input file is empty" << endl;
+        return 2;
+    }
+    
+    // Parse and validate k
+    int maxK;
+    try {
+        maxK = std::stoi(argv[2]);
+    } catch (const std::invalid_argument& e) {
+        cerr << "ERROR: k value '" << argv[2] << "' is not numeric" << endl;
+        return 3;
+    } catch (const std::out_of_range& e) {
+        cerr << "ERROR: k value '" << argv[2] << "' is out of range" << endl;
+        return 3;
+    }
+    
+    if (maxK < 1) {
+        cerr << "ERROR: k value must be at least 1" << endl;
+        return 4;
+    }
+    
+    // Check if k is larger than the text length
+    if (maxK > text.length()) {
+        cerr << "ERROR: k value (" << maxK << ") is larger than text length (" << text.length() << ")" << endl;
+        return 5;
+    }
+    
+    // Parse and validate n (or check for -m flag)
+    int n = 0;
+    bool printJSON = false;
+    std::string thirdArg = argv[3];
+    
+    if (thirdArg == "-m") {
+        printJSON = true;
+    } else {
+        try {
+            n = std::stoi(argv[3]);
+        } catch (const std::invalid_argument& e) {
+            cerr << "ERROR: n value '" << argv[3] << "' is not numeric and is not '-m'" << endl;
+            return 6;
+        } catch (const std::out_of_range& e) {
+            cerr << "ERROR: n value '" << argv[3] << "' is out of range" << endl;
+            return 6;
+        }
+        
+        if (n < maxK) {
+            cerr << "ERROR: n value (" << n << ") must be at least k (" << maxK << ")" << endl;
+            return 7;
+        }
+    }
+    
+    // Handle -m flag for JSON output
+    if (printJSON) {
+        // Build distribution for level maxK only
+        std::map<std::string, std::map<char, int>> distribution;
+        
+        // Special case handling: prepend the last k characters to the beginning
+        std::string processedText = text.substr(text.length() - maxK) + text;
+        
+        // Build the distribution
+        for (size_t i = 0; i <= processedText.length() - maxK - 1; i++) {
+            std::string kgram = processedText.substr(i, maxK);
+            char nextChar = processedText[i + maxK];
+            distribution[kgram][nextChar]++;
+        }
+        
+        // Print JSON output
+        cout << "{" << endl;
+        bool firstKgram = true;
+        for (std::map<std::string, std::map<char, int>>::iterator kgramIt = distribution.begin(); 
+             kgramIt != distribution.end(); ++kgramIt) {
+            if (!firstKgram) {
+                cout << "," << endl;
+            }
+            firstKgram = false;
+            
+            cout << "    \"" << kgramIt->first << "\": {" << endl;
+            
+            bool firstChar = true;
+            for (std::map<char, int>::iterator charIt = kgramIt->second.begin(); 
+                 charIt != kgramIt->second.end(); ++charIt) {
+                if (!firstChar) {
+                    cout << "," << endl;
+                }
+                firstChar = false;
+                
+                cout << "        \"" << charIt->first << "\": " << charIt->second;
+            }
+            cout << endl << "    }";
+        }
+        cout << endl << "}" << endl;
+        
+        return 0;
+    }
     
     // Generate text for each level from 1 to k
     for (int k = 1; k <= maxK; k++) {
@@ -106,12 +206,13 @@ int main(int argc, char * argv[]){
         for (int i = k; i < n; i++) {
             // Get the distribution for the current k-gram
             if (distribution.find(currentKgram) != distribution.end()) {
-                auto& charCounts = distribution[currentKgram];
+                std::map<char, int>& charCounts = distribution[currentKgram];
                 
                 // Calculate total occurrences
                 int total = 0;
-                for (const auto& pair : charCounts) {
-                    total += pair.second;
+                for (std::map<char, int>::iterator it = charCounts.begin(); 
+                     it != charCounts.end(); ++it) {
+                    total += it->second;
                 }
                 
                 // Generate random number and select character based on probabilities
@@ -119,10 +220,11 @@ int main(int argc, char * argv[]){
                 int cumulative = 0;
                 char nextChar = ' ';
                 
-                for (const auto& pair : charCounts) {
-                    cumulative += pair.second;
+                for (std::map<char, int>::iterator it = charCounts.begin(); 
+                     it != charCounts.end(); ++it) {
+                    cumulative += it->second;
                     if (randNum < cumulative) {
-                        nextChar = pair.first;
+                        nextChar = it->first;
                         break;
                     }
                 }
