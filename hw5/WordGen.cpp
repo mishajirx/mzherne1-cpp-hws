@@ -65,67 +65,84 @@ int main(int argc, char * argv[]){
     }
     infile.close();
     
-    // For now, hardcode k = 1
-    int k = 1;
+    // Get k and n from command line
+    int maxK = std::stoi(argv[2]);
     int n = std::stoi(argv[3]);
     
-    // Build the character distribution for level 1
-    // Map from k-length string to map of next characters and their counts
-    std::map<std::string, std::map<char, int>> distribution;
-    
-    // Special case handling: prepend the last k characters to the beginning
-    std::string processedText = text.substr(text.length() - k) + text;
-    
-    // Build the distribution
-    for (size_t i = 0; i < processedText.length() - k; i++) {
-        std::string kgram = processedText.substr(i, k);
-        char nextChar = processedText[i + k];
-        distribution[kgram][nextChar]++;
-    }
-    
-    // Generate random text
-    cout << "Level 1: ";
-    
-    // Start with the first k characters from the original text
-    std::string currentKgram = text.substr(0, k);
-    cout << currentKgram;
-    
-    // Generate n - k more characters
-    for (int i = k; i < n; i++) {
-        // Get the distribution for the current k-gram
-        if (distribution.find(currentKgram) != distribution.end()) {
-            auto& charCounts = distribution[currentKgram];
-            
-            // Calculate total occurrences
-            int total = 0;
-            for (const auto& pair : charCounts) {
-                total += pair.second;
-            }
-            
-            // Generate random number and select character based on probabilities
-            int randNum = std::rand() % total;
-            int cumulative = 0;
-            char nextChar = ' ';
-            
-            for (const auto& pair : charCounts) {
-                cumulative += pair.second;
-                if (randNum < cumulative) {
-                    nextChar = pair.first;
-                    break;
-                }
-            }
-            
-            // Output the character and update current k-gram
-            cout << nextChar;
-            currentKgram = currentKgram.substr(1) + nextChar;
+    // Generate text for each level from 1 to k
+    for (int k = 1; k <= maxK; k++) {
+        // Build the character distribution for level k
+        // Map from k-length string to map of next characters and their counts
+        std::map<std::string, std::map<char, int>> distribution;
+        
+        // Special case handling: prepend the last k characters to the beginning
+        std::string processedText;
+        if (k <= text.length()) {
+            processedText = text.substr(text.length() - k) + text;
         } else {
-            // This shouldn't happen with the special case handling
-            break;
+            processedText = text;  // If k > text length, just use the text as is
         }
+        
+        // Build the distribution
+        for (size_t i = 0; i <= processedText.length() - k - 1; i++) {
+            std::string kgram = processedText.substr(i, k);
+            char nextChar = processedText[i + k];
+            distribution[kgram][nextChar]++;
+        }
+        
+        // Generate random text
+        cout << "Level " << k << ": ";
+        
+        // Start with the first k characters from the original text
+        std::string currentKgram;
+        if (k <= text.length()) {
+            currentKgram = text.substr(0, k);
+        } else {
+            currentKgram = text;  // If k > text length, use entire text
+        }
+        cout << currentKgram;
+        
+        // Generate n - k more characters
+        for (int i = k; i < n; i++) {
+            // Get the distribution for the current k-gram
+            if (distribution.find(currentKgram) != distribution.end()) {
+                auto& charCounts = distribution[currentKgram];
+                
+                // Calculate total occurrences
+                int total = 0;
+                for (const auto& pair : charCounts) {
+                    total += pair.second;
+                }
+                
+                // Generate random number and select character based on probabilities
+                int randNum = std::rand() % total;
+                int cumulative = 0;
+                char nextChar = ' ';
+                
+                for (const auto& pair : charCounts) {
+                    cumulative += pair.second;
+                    if (randNum < cumulative) {
+                        nextChar = pair.first;
+                        break;
+                    }
+                }
+                
+                // Output the character and update current k-gram
+                cout << nextChar;
+                if (k > 1) {
+                    currentKgram = currentKgram.substr(1) + nextChar;
+                } else {
+                    currentKgram = std::string(1, nextChar);
+                }
+            } else {
+                // This shouldn't happen with the special case handling
+                break;
+            }
+        }
+        
+        cout << endl;
+        cout << "~~~" << endl;
     }
-    
-    cout << endl;
-    cout << "~~~" << endl;
 
     return 0;
 
