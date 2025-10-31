@@ -32,6 +32,25 @@ void trim(std::string &s) {
     ltrim(s);
 }
 
+bool isValidInteger(const std::string& str) {
+    if (str.empty()) return false;
+    
+    size_t start = 0;
+    // Allow negative numbers
+    if (str[0] == '-' || str[0] == '+') {
+        if (str.length() == 1) return false;  // Just a sign is not valid
+        start = 1;
+    }
+    
+    // Check that all remaining characters are digits
+    for (size_t i = start; i < str.length(); i++) {
+        if (!std::isdigit(str[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 using std::endl;
 using std::cout;
 using std::cerr;
@@ -80,15 +99,14 @@ int main(int argc, char * argv[]){
     
     // Parse and validate k
     int maxK;
-    try {
+    if (isValidInteger(argv[2])){
         maxK = std::stoi(argv[2]);
-    } catch (const std::invalid_argument& e) {
-        cerr << "ERROR: k value '" << argv[2] << "' is not numeric" << endl;
-        return 3;
-    } catch (const std::out_of_range& e) {
+    }
+    else {
         cerr << "ERROR: k value '" << argv[2] << "' is out of range" << endl;
         return 3;
     }
+
     
     if (maxK < 1) {
         cerr << "ERROR: k value must be at least 1" << endl;
@@ -109,15 +127,13 @@ int main(int argc, char * argv[]){
     if (thirdArg == "-m") {
         printJSON = true;
     } else {
-        try {
+        if (isValidInteger(argv[3])){
             n = std::stoi(argv[3]);
-        } catch (const std::invalid_argument& e) {
+        }
+        else {
             cerr << "ERROR: n value '" << argv[3] << "' is not numeric and is not '-m'" << endl;
             return 6;
-        } catch (const std::out_of_range& e) {
-            cerr << "ERROR: n value '" << argv[3] << "' is out of range" << endl;
-            return 6;
-        }
+        } 
         
         if (n < maxK) {
             cerr << "ERROR: n value (" << n << ") must be at least k (" << maxK << ")" << endl;
@@ -134,10 +150,15 @@ int main(int argc, char * argv[]){
         std::string processedText = text.substr(text.length() - maxK) + text;
         
         // Build the distribution
+        std::string kgram;
+        if (0 <= processedText.length() - maxK - 1){
+            kgram = processedText.substr(0, maxK);
+        }
         for (size_t i = 0; i <= processedText.length() - maxK - 1; i++) {
-            std::string kgram = processedText.substr(i, maxK);
             char nextChar = processedText[i + maxK];
             distribution[kgram][nextChar]++;
+            kgram.erase(kgram.begin());
+            kgram.push_back(nextChar);
         }
         
         // Print JSON output
@@ -174,6 +195,7 @@ int main(int argc, char * argv[]){
         // Build the character distribution for level k
         // Map from k-length string to map of next characters and their counts
         std::map<std::string, std::map<char, int>> distribution;
+        std::map<std::string, std::vector<char>> letter_list;
         
         // Special case handling: prepend the last k characters to the beginning
         std::string processedText;
@@ -183,11 +205,18 @@ int main(int argc, char * argv[]){
             processedText = text;  // If k > text length, just use the text as is
         }
         
+        std::string kgram;
+        if (0 <= processedText.length() - k - 1){
+            kgram = processedText.substr(0, k);
+        }
+        
         // Build the distribution
         for (size_t i = 0; i <= processedText.length() - k - 1; i++) {
-            std::string kgram = processedText.substr(i, k);
             char nextChar = processedText[i + k];
             distribution[kgram][nextChar]++;
+            letter_list[kgram].push_back(nextChar);
+            kgram.erase(kgram.begin());
+            kgram.push_back(nextChar);
         }
         
         // Generate random text
@@ -209,25 +238,11 @@ int main(int argc, char * argv[]){
                 std::map<char, int>& charCounts = distribution[currentKgram];
                 
                 // Calculate total occurrences
-                int total = 0;
-                for (std::map<char, int>::iterator it = charCounts.begin(); 
-                     it != charCounts.end(); ++it) {
-                    total += it->second;
-                }
                 
                 // Generate random number and select character based on probabilities
-                int randNum = std::rand() % total;
+                int randNum = std::rand() % letter_list[currentKgram].size();
                 int cumulative = 0;
-                char nextChar = ' ';
-                
-                for (std::map<char, int>::iterator it = charCounts.begin(); 
-                     it != charCounts.end(); ++it) {
-                    cumulative += it->second;
-                    if (randNum < cumulative) {
-                        nextChar = it->first;
-                        break;
-                    }
-                }
+                char nextChar = letter_list[currentKgram][randNum];
                 
                 // Output the character and update current k-gram
                 cout << nextChar;
